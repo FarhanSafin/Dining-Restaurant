@@ -18,37 +18,37 @@ bool isHead() {
         return false;
 }
 
-void cookCuisines(int world_rank, int world_size) {
+void cookCuisines(int rank, int size) {
     int dishCount = 0;
     while (dishCount < totalDishOrdered) {
         MPI_Recv(NULL, 0, MPI_INT, 0, COOKING_REQ_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         if (isHead()) {
             sleep(5);
         }
-        printf("\t\tChef %d: dish %d is ready, you can take it to the guests.\n", world_rank, dishCount + 1);
+        printf("\t\tChef %d: dish %d is ready, you can take it to the guests.\n", rank, dishCount + 1);
         MPI_Send(NULL, 0, MPI_INT, 0, COOKING_DONE_TAG, MPI_COMM_WORLD);
         dishCount++;
     }
 }
 
-void serveGuests(int world_rank, int world_size) {
-    printf("Waiter %d: Sirs, the serving will be started soon.\n", world_rank);
+void serveGuests(int rank, int size) {
+    printf("Waiter %d: Sirs, the serving will be started soon.\n", rank);
     for (int i = 0; i < totalDishOrdered; i++) {
         MPI_Send(NULL, 0, MPI_INT, 1, REQUEST_DISH_TAG, MPI_COMM_WORLD);
-        printf("\tWaiter %d: Chef, the guests are ready for dish no %d!\n", world_rank, i + 1);
+        printf("\tWaiter %d: Chef, the guests are ready for dish no %d!\n", rank, i + 1);
         MPI_Recv(NULL, 0, MPI_INT, 1, COOKING_REQ_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         if (isHead()) {
             sleep(5);
         }
-        printf("\t\t\tWaiter %d: Sirs, this is your dish %d. Enjoy!\n", world_rank, i + 1);
+        printf("\t\t\tWaiter %d: Sirs, this is your dish %d. Enjoy!\n", rank, i + 1);
         MPI_Send(NULL, 0, MPI_INT, 0, COOKING_DONE_TAG, MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Barrier(MPI_COMM_WORLD);
     }
 }
 
-void eat(int world_rank, int world_size) {
-    int guestNo = world_rank - 2;
+void eat(int rank, int size) {
+    int guestNo = rank - 2;
     for (int i = 0; i < totalDishOrdered; i++) {
         if (guestNo == 0) {
             printf("\n\nGuest %d: Waiter, we are ready for dish %d\n", guestNo + 1, i + 1);
@@ -66,20 +66,20 @@ void eat(int world_rank, int world_size) {
 }
 
 int main(int argc, char *argv[]) {
-    int world_rank, world_size;
+    int rank, size;
     MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    srand(time(NULL) + world_rank);
+    srand(time(NULL) + rank);
 
-    if (world_rank == 0) { // chef process
-        totalDishOrdered = world_size - 2;
-        cookCuisines(world_rank, world_size);
-    } else if (world_rank == 1) { // waiter process
-        serveGuests(world_rank, world_size);
-    } else { // guest processes
-        eat(world_rank, world_size);
+    if (rank == 0) {
+        totalDishOrdered = size - 2;
+        cookCuisines(rank, size);
+    } else if (rank == 1) {
+        serveGuests(rank, size);
+    } else {
+        eat(rank, size);
     }
 
     MPI_Finalize();
